@@ -7,7 +7,6 @@
 
 #define NUM_BLOCKS  3       // Initial number of mem_nodes, chunks of memory
 #define BLOCK_SIZE 1024    // Maximum block size
-#define DEBUG
 
 /* type definitions */
 // these mem_nodes will be strung together in a doubly-linked queue
@@ -46,7 +45,7 @@ void compact();
 /* global variables */
 doubly_linked_queue *AVAILABLE_MEMORY = NULL;
 doubly_linked_queue *ALLOCATED_MEMORY = NULL;
-
+pthread_mutex_t mutex4=PTHREAD_MUTEX_INITIALIZER;
 /* methods */
 
 // initializes data and creates threads
@@ -74,9 +73,6 @@ void init_queues()
         if (new_mem_node == NULL) return; // check to see if heap is full (malloc failure)
         init_mem_node(new_mem_node, i);    
         enqueue2(AVAILABLE_MEMORY, new_mem_node);
-#ifdef DEBUG       
-        printf("New mem_node ptid: %d nBase: %d nStay: %d nBlocks: %d\n", new_mem_node->ptid, new_mem_node->nBase, new_mem_node->nStay, new_mem_node->nBlocks);
-#endif        
     }
 }
 
@@ -102,9 +98,6 @@ void enqueue2(doubly_linked_queue *memory, mem_node *new_mem_node)
         memory->head = new_mem_node;
     memory->tail = new_mem_node;
     memory->length++;
-#ifdef DEBUG
-    printf("queue tail ptid: %d queue head ptid: %d\n", memory->tail->ptid, memory->head->ptid);
-#endif
   
 }
 
@@ -179,27 +172,27 @@ void merge_mem_nodes()
     // Ignore the head. If it is still in the AVAILABLE_MEMORY pool, then it
     // is still large enough to be subdivided into other mem_nodes. Just give blocks
     // back to it.
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex4);
     AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->head->next;
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex4);
     while (AVAILABLE_MEMORY->current != AVAILABLE_MEMORY->tail)
     {
         if (AVAILABLE_MEMORY->current->nBlocks < BLOCK_SIZE)
         {
             temp_mem_node = AVAILABLE_MEMORY->current;
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->current->next;
             AVAILABLE_MEMORY->head->nBlocks += temp_mem_node->nBlocks;
             requeue2(temp, AVAILABLE_MEMORY, temp_mem_node);
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
         }
         if (AVAILABLE_MEMORY->tail->nBlocks < BLOCK_SIZE) // handle tail separately
         {
             temp_mem_node = AVAILABLE_MEMORY->tail;
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             AVAILABLE_MEMORY->head->nBlocks += temp_mem_node->nBlocks;
             requeue2(temp, AVAILABLE_MEMORY, temp_mem_node);
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
         }
     }
     free(temp); // free allocated temp queue 
@@ -217,17 +210,17 @@ void compact()
     // registers. The updates occur tail first because memory 
     // is allocated sequentially starting at the highest memory
     // offset.
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex4);
     ALLOCATED_MEMORY->tail->nBase = AVAILABLE_MEMORY->head->nBlocks + 1; // offset the tail first as it is a special case
     ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->tail;
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex4);
     while (ALLOCATED_MEMORY->current != ALLOCATED_MEMORY->head)
     {
         temp_mem_node = ALLOCATED_MEMORY->current;
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex4);
         ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->current->prev;     // traversing backwards
         ALLOCATED_MEMORY->current->nBase = temp_mem_node->nBase + temp_mem_node->nBlocks + 1; // base + limit + 1
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&mutex4);
     }
     
 }
@@ -255,9 +248,9 @@ void *allocate()
             printf("\n==== Allocating Memory ====\n");
 #endif
             int blocks_to_allocate = rand() % 41 + 10; // 10 - 50 blocks
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->head;
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
             while (AVAILABLE_MEMORY->current != AVAILABLE_MEMORY->tail) // looking via "First Fit" method
             {
                 if (AVAILABLE_MEMORY->current->nBlocks > blocks_to_allocate)
@@ -267,27 +260,27 @@ void *allocate()
                     {
                         // split the mem_node by decrementing its nBlocks and creating a new mem_node
                         // with the difference. Add the new mem_node to the allocated queue
-                        pthread_mutex_lock(&mutex);
+                        pthread_mutex_lock(&mutex4);
                         mem_node* new_mem_node = split_mem_node(AVAILABLE_MEMORY->current, blocks_to_allocate); 
                         enqueue2(ALLOCATED_MEMORY, new_mem_node);
-                        pthread_mutex_unlock(&mutex);
+                        pthread_mutex_unlock(&mutex4);
                     } 
                     else
                     {    // allocate the current mem_node by moving it to the allocated queue
-                         pthread_mutex_lock(&mutex);
+                         pthread_mutex_lock(&mutex4);
                          requeue2(ALLOCATED_MEMORY, AVAILABLE_MEMORY,AVAILABLE_MEMORY->current);
-                         pthread_mutex_unlock(&mutex);
+                         pthread_mutex_unlock(&mutex4);
                     }
                     // exit the loop after a fit is found.
-                    pthread_mutex_lock(&mutex);
+                    pthread_mutex_lock(&mutex4);
                     AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->tail;    
-                    pthread_mutex_unlock(&mutex);
+                    pthread_mutex_unlock(&mutex4);
                 }
                 else // we cannot allocate blocks from this mem_node 
                 {
-                    pthread_mutex_lock(&mutex);
+                    pthread_mutex_lock(&mutex4);
                     AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->current->next;
-                    pthread_mutex_unlock(&mutex);
+                    pthread_mutex_unlock(&mutex4);
                 }
             }       
             sleep(1);
@@ -312,10 +305,10 @@ void *collect()
 #ifdef DEBUG
             printf("\n==== Garbage Collecting ====\n");
 #endif
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             ALLOCATED_MEMORY->head->nStay = 0;                                   // deallocate and clear timer
             requeue2(AVAILABLE_MEMORY, ALLOCATED_MEMORY, ALLOCATED_MEMORY->head); // the head should have highest stay
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
             if (AVAILABLE_MEMORY->length > NUM_BLOCKS * 3)
             {
                 merge_mem_nodes();                                                   // merge free mem_nodes in available memory
@@ -340,7 +333,7 @@ void *monitor()
 #ifdef DEBUG
             printf("\n==== Traversing Available Memory ====\n");
 #endif
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->head;
             while(AVAILABLE_MEMORY->current != AVAILABLE_MEMORY->tail)
             {
@@ -348,7 +341,7 @@ void *monitor()
                 AVAILABLE_MEMORY->current = AVAILABLE_MEMORY->current->next;
             }
             printf("Current mem_node: %d nBase: %d nStay %d nBlocks %d\n", AVAILABLE_MEMORY->tail->ptid, AVAILABLE_MEMORY->tail->nBase, AVAILABLE_MEMORY->tail->nStay, AVAILABLE_MEMORY->tail->nBlocks); // must print the tail too 
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
         }
 
         // Releasing lock before checking allocated memory because no memory may be allocated.
@@ -359,7 +352,7 @@ void *monitor()
 #ifdef DEBUG
             printf("\n==== Traversing Allocated Memory ====\n");
 #endif
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->head;
             while(ALLOCATED_MEMORY->current != ALLOCATED_MEMORY->tail)
             {
@@ -367,7 +360,7 @@ void *monitor()
                 ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->current->next;
             }
             printf("Current mem_node: %d nBase: %d nStay: %d nBlocks: %d\n", ALLOCATED_MEMORY->tail->ptid, ALLOCATED_MEMORY->tail->nBase, ALLOCATED_MEMORY->tail->nStay, ALLOCATED_MEMORY->tail->nBlocks); // must print the tail too 
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
         } 
         sleep(5);
     }
@@ -389,7 +382,7 @@ void *increment_times()
 #ifdef DEBUG
             printf("\n==== Incrementing Allocated Memory Stay Values  ====\n");
 #endif
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex4);
             ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->head;
             while (ALLOCATED_MEMORY->current != ALLOCATED_MEMORY->tail)
             {
@@ -397,7 +390,7 @@ void *increment_times()
                 ALLOCATED_MEMORY->current = ALLOCATED_MEMORY->current->next;
             }
             ALLOCATED_MEMORY->tail->nStay++; // handle the tail
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex4);
         }
         sleep(1);
     }

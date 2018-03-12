@@ -7,7 +7,6 @@
 
 #define NUM_NODES 30
 #define MAX 2147483647
-#define DEBUG
 
 /* type definitions */
 // these nodes will be strung together in a doubly-linked queue
@@ -36,6 +35,7 @@ node *CURRENT  = NULL;
 node *HEAD     = NULL;
 node *TAIL     = NULL;
 node *MIN_PRIO = NULL;
+pthread_mutex_t mutex3=PTHREAD_MUTEX_INITIALIZER;
 
 /* methods */
 
@@ -58,9 +58,6 @@ void init_queue()
         if (new_node == NULL) return;
         init_node(new_node, i);    
         enqueue(new_node);
-#ifdef DEBUG       
-       printf("New node ptid: %d prio: %d\n", new_node->ptid, new_node->prio);
-#endif        
     }
 }
 
@@ -83,12 +80,7 @@ void enqueue(node *new_node)
     }
     else
         HEAD = new_node;
-    TAIL = new_node; 
-
-#ifdef DEBUG
-    printf("TAIL ptid: %d HEAD ptid: %d\n", TAIL->ptid, HEAD->ptid);
-#endif
-  
+    TAIL = new_node;   
 }
 
 // helper function that adds the min prio node
@@ -139,19 +131,16 @@ void *schedule()
 {
     while(true) 
     {
-#ifdef DEBUG
-        printf("\n==== Scheduling Process ====\n");
-#endif
         // find the minimum priority with a traversal
         // print this node's information out
         // adjust the node's priority 
         // place it at the end of the queue 
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex3);
         silent_traverse();
         printf("SCHEDULED: Node %d with Prio %d and Desc %s\n", MIN_PRIO->ptid, MIN_PRIO->prio, MIN_PRIO->desc);
         MIN_PRIO->prio = rand() % 70 + 31; // 30-100
         requeue();
-        pthread_mutex_unlock(&mutex);       
+        pthread_mutex_unlock(&mutex3);       
         sleep(2);
     }
     return EXIT_SUCCESS;
@@ -163,24 +152,17 @@ void *interrupt()
 {
     while(true)
     {
-#ifdef DEBUG
-        printf("\n==== Interrupting Processes ====\n");
-#endif
         int steps = rand() % 30;          // 0 - 29
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex3);
         CURRENT = HEAD;
         for(i = 0; i < steps && i < NUM_NODES; ++i)
         {
             CURRENT = CURRENT->next;
         }
-#ifdef DEBUG
-        printf("Node %d Priority BEFORE update: %d\n", CURRENT->ptid, CURRENT->prio);
-#endif
+
         CURRENT->prio = rand() % 70 + 31; // 30 - 100
-#ifdef DEBUG
-        printf("Node %d Priority AFTER update: %d\n", CURRENT->ptid, CURRENT->prio);
-#endif
-        pthread_mutex_unlock(&mutex);
+
+        pthread_mutex_unlock(&mutex3);
         sleep(3);
     }
     return EXIT_SUCCESS;
@@ -193,10 +175,7 @@ void *traverse()
 {
     while(true) 
     {
-#ifdef DEBUG
-        printf("\n==== Traversing Doubly-Linked Queue ====\n");
-#endif
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex3);
         CURRENT = HEAD;
         while(CURRENT != TAIL)
         {
@@ -204,7 +183,7 @@ void *traverse()
             CURRENT = CURRENT->next;
         }
         printf("Current node: %d\n", TAIL->ptid); // must print the tail too 
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&mutex3);
         sleep(5);
     }
     return EXIT_SUCCESS;

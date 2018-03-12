@@ -9,10 +9,6 @@
 #define BUFFER_SIZE 10
 #define ROUNDS 3         // used to terminate execution
 
-// toggle comments on DEBUG to see differing behaviors
-// of this code based on sleep values.
-#define DEBUG
-
 // type definition for thread specific data
 // this is not needed in this example, but
 // included for practice.
@@ -30,7 +26,7 @@ void* consume(void*);
 // and consumer. This version uses mutex locks.
 int stack[BUFFER_SIZE];
 int counter = 0, rear = 0, front = 0, i;
-pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex2=PTHREAD_MUTEX_INITIALIZER;
 
 // methods: Code Section
 // Main establishes the threads. It is designed so that the producer
@@ -52,8 +48,7 @@ int init_procon()
 void *produce(void *arg)
 {
     do { 
-       
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex2);
         if (counter < BUFFER_SIZE - 1)
         {
             stack[rear] = counter; // produces an int
@@ -61,14 +56,10 @@ void *produce(void *arg)
             rear = (rear + 1) % BUFFER_SIZE;
             counter++;
         }
-        pthread_mutex_unlock(&mutex);
-#ifndef DEBUG
-    } while (counter < BUFFER_SIZE - 1);
-#else
-         sleep(1);
-    } while(true); // debug version is designed to run forever.
-     printf("Successfully exiting produce function...\n");
-#endif
+        pthread_mutex_unlock(&mutex2);
+        sleep(1);
+    } while(true); 
+    printf("Successfully exiting produce function...\n");
     return EXIT_SUCCESS; 
 }
 
@@ -79,7 +70,7 @@ void *consume(void *arg)
     int consumed = 0;
 
     do {
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex2);
         if (counter > 0)
         {
             consumed = stack[front];
@@ -87,13 +78,9 @@ void *consume(void *arg)
             front = (front + 1) % BUFFER_SIZE;
             counter--;        
         }
-        pthread_mutex_unlock(&mutex);
-#ifndef DEBUG
-    } while (counter > 0);   
-#else
-         sleep(1);
-    } while(true); // debug version is designed to run forever 
+        pthread_mutex_unlock(&mutex2);
+        sleep(1);
+    } while(true); 
      printf("Successfully exiting consume function...\n");
-#endif
      return EXIT_SUCCESS;
 }

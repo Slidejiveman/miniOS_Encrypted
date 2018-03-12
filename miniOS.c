@@ -5,8 +5,9 @@
 #include "lab2.h"
 #include "lab3.h"
 #include "lab4.h"
+#include <string.h>
 
-#define DEBUG
+// #define DEBUG
 #define NUM_FUNCS 200 // number of functions possible
 
 /* thread function declarations */ 
@@ -234,6 +235,9 @@ void *func197() { printf("func197\n"); }
 void *func198() { printf("func198\n"); }
 void *func199() { printf("func199\n"); }
 
+/* globals */
+static char cfgPm[100][10];
+
 /* type definitions  */
 // function pointer arrays have messy syntax
 // this typedef helps to make things cleaner
@@ -302,6 +306,7 @@ Func_map INTERRUPT_VECTOR[NUM_FUNCS] = { { 0, produce }, { 1, consume }, { 2, fu
                                        };
 
 /* helper functions  */
+int prompt();
 
 /* processing  */
 // Main initializes 20 threads by incrementing
@@ -312,27 +317,56 @@ int main(int argc, char *argv[])
     init_procon();
     init_scheduler();
     init_memory_manager();
-    // local variables 
-    int i, rc;
- 
-    // loop over the command set, and create pthreads to run 
-    // for each enabled function.
-    for (i = 1; i < argc; ++i) // program name counts as an argument
-    {
-#ifndef DEBUG
-        sleep(1);
-#endif
-        if ((rc =  pthread_create(&INTERRUPT_VECTOR[atoi(argv[i])].thread, NULL, INTERRUPT_VECTOR[atoi(argv[i])].func , NULL)))
-        {
-            fprintf(stderr, "error creating thread # %d\n", INTERRUPT_VECTOR[atoi(argv[i])].ptid);
-            return EXIT_FAILURE;
-        } 
-    }
 
-    for (i = 1; i < argc; ++i)
+    // local variables 
+    int i, rc, intr;
+    char pro;
+    while (pro = prompt()) 
     {
-        pthread_join(INTERRUPT_VECTOR[atoi(argv[i])].thread, NULL);
+        if (pro < 0) continue;
+        // loop over the command set, and create pthreads to run 
+        // for each enabled function.
+        for (i = 0; cfgPm[i][0]; ++i) // program name counts as an argument
+        {
+            intr = atoi(cfgPm[i]);
+            if ((rc =  pthread_create(&INTERRUPT_VECTOR[intr].thread, NULL, INTERRUPT_VECTOR[intr].func , NULL)))
+            {
+                fprintf(stderr, "error creating thread # %d\n", INTERRUPT_VECTOR[intr].ptid);
+                continue; //there was a thread creation failure
+            } 
+        }
+
+        sleep(60);
+#ifdef DEBUG        
+        printf("passed the sleep\n");
+#endif
+        for (i = 0; cfgPm[i][0]; ++i)
+        {
+            intr = atoi(cfgPm[i]);
+            pthread_cancel(INTERRUPT_VECTOR[intr].thread);
+    
+        }
     } 
  
     return EXIT_SUCCESS;
+}
+
+// Displays the prompt to the screen
+int prompt() {
+    char cfg[100];
+    printf("\nminiOS>");
+    fgets(cfg, 100, stdin);
+    cfg[strlen(cfg)-1] = '\0';
+    int i = 0;
+    FILE *fp;
+    if ((fp = fopen(cfg, "r")) == NULL) {
+        printf("cmd <%s> wrong", cfg);
+        return -1;
+    }
+    for (i = 0; fscanf(fp, "%s\n", cfgPm[i]) != EOF; i++) {
+        printf("p%d=[%s]\n", i, cfgPm[i]);
+    }
+    cfgPm[i][0] = '\0';
+    fclose(fp);
+    return 1;
 }
