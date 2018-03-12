@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include "lab2.h"
+#include "lab3.h"
+#include "lab4.h"
 
 #define DEBUG
 #define NUM_FUNCS 200 // number of functions possible
@@ -246,12 +249,12 @@ typedef struct _func_map {
 
 /* global variables  */
 // emulates the hardware interrupt vector as a key to function map
-Func_map INTERRUPT_VECTOR[NUM_FUNCS] = { { 0, func0 }, { 1, func1 }, { 2, func2 }, { 3, func3 },  
+Func_map INTERRUPT_VECTOR[NUM_FUNCS] = { { 0, produce }, { 1, consume }, { 2, func2 }, { 3, func3 },  
                                          { 4, func4 }, { 5, func5 }, { 6, func6 }, { 7, func7 },
-                                         { 8, func8 }, { 9, func9 }, { 10, func10 }, { 11, func11 },
-                                         { 12, func12 }, { 13, func13 }, { 14, func14 }, { 15, func15 },
+                                         { 8, func8 }, { 9, func9 }, { 10, schedule }, { 11, interrupt },
+                                         { 12, traverse }, { 13, func13 }, { 14, func14 }, { 15, func15 },
                                          { 16, func16 }, { 17, func17 }, { 18, func18 }, { 19, func19 },
-                                         { 20, func20 }, { 21, func21 }, { 22, func22 }, { 23, func23 },
+                                         { 20, allocate }, { 21, collect }, { 22, monitor }, { 23, increment_times },
                                          { 24, func24 }, { 25, func25 }, { 26, func26 }, { 27, func27 },
                                          { 28, func28 }, { 29, func29 }, { 30, func30 }, { 31, func31 },
                                          { 32, func32 }, { 33, func33 }, { 34, func34 }, { 35, func35 },
@@ -306,6 +309,9 @@ Func_map INTERRUPT_VECTOR[NUM_FUNCS] = { { 0, func0 }, { 1, func1 }, { 2, func2 
 // chosen to be implemented by the customer.
 int main(int argc, char *argv[]) 
 {
+    init_procon();
+    init_scheduler();
+    init_memory_manager();
     // local variables 
     int i, rc;
  
