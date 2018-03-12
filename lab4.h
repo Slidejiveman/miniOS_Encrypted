@@ -7,6 +7,7 @@
 
 #define NUM_BLOCKS  3       // Initial number of mem_nodes, chunks of memory
 #define BLOCK_SIZE 1024    // Maximum block size
+#define DEBUG
 
 /* type definitions */
 // these mem_nodes will be strung together in a doubly-linked queue

@@ -7,7 +7,7 @@
 #include "lab4.h"
 #include <string.h>
 
-// #define DEBUG
+#define DEBUGOS
 #define NUM_FUNCS 200 // number of functions possible
 
 /* thread function declarations */ 
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
         }
 
         sleep(60);
-#ifdef DEBUG        
+#ifdef DEBUGOS        
         printf("passed the sleep\n");
 #endif
         for (i = 0; cfgPm[i][0]; ++i)

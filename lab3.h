@@ -159,7 +159,7 @@ void *interrupt()
         {
             CURRENT = CURRENT->next;
         }
-
+        printf("\nINTERRUPTED: Node %d\n", CURRENT->ptid);
         CURRENT->prio = rand() % 70 + 31; // 30 - 100
 
         pthread_mutex_unlock(&mutex3);
@@ -175,6 +175,7 @@ void *traverse()
 {
     while(true) 
     {
+        printf("\n TRAVERSING \n");
         pthread_mutex_lock(&mutex3);
         CURRENT = HEAD;
         while(CURRENT != TAIL)
