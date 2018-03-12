@@ -68,7 +68,7 @@ void init_queues()
     if (AVAILABLE_MEMORY == NULL) return;
     ALLOCATED_MEMORY = (doubly_linked_queue*) malloc(sizeof(doubly_linked_queue));
     if (ALLOCATED_MEMORY == NULL) return;
-    for (i = 0; i < NUM_NODES; ++i)
+    for (i = 0; i < NUM_BLOCKS; ++i)
     {
         mem_node *new_mem_node = (mem_node*) malloc(sizeof(mem_node));
         if (new_mem_node == NULL) return; // check to see if heap is full (malloc failure)
@@ -316,7 +316,7 @@ void *collect()
             ALLOCATED_MEMORY->head->nStay = 0;                                   // deallocate and clear timer
             requeue2(AVAILABLE_MEMORY, ALLOCATED_MEMORY, ALLOCATED_MEMORY->head); // the head should have highest stay
             pthread_mutex_unlock(&mutex);
-            if (AVAILABLE_MEMORY->length > NUM_NODES * 3)
+            if (AVAILABLE_MEMORY->length > NUM_BLOCKS * 3)
             {
                 merge_mem_nodes();                                                   // merge free mem_nodes in available memory
                 compact();                                                       // recalculate memory offsets
