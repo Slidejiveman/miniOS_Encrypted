@@ -307,6 +307,8 @@ Func_map INTERRUPT_VECTOR[NUM_FUNCS] = { { 0, produce }, { 1, consume }, { 2, fu
 
 /* helper functions  */
 int prompt();
+int get_key();
+int decrypt();
 
 /* processing  */
 // Main initializes 20 threads by incrementing
@@ -314,6 +316,12 @@ int prompt();
 // chosen to be implemented by the customer.
 int main(int argc, char *argv[]) 
 {
+    // the key to decrypt the files.
+    // if the key is not available, then the program will not run
+    int key = get_key();
+#ifdef DEBUGOS    
+    printf("Key value: %d\n", key);
+#endif
     init_procon();
     init_scheduler();
     init_memory_manager();
@@ -326,9 +334,9 @@ int main(int argc, char *argv[])
         if (pro < 0) continue;
         // loop over the command set, and create pthreads to run 
         // for each enabled function.
-        for (i = 0; cfgPm[i][0]; ++i) // program name counts as an argument
+        for (i = 0; cfgPm[i][0]; ++i)
         {
-            intr = atoi(cfgPm[i]);
+            intr = atoi(cfgPm[i]) ^ key;
             if ((rc =  pthread_create(&INTERRUPT_VECTOR[intr].thread, NULL, INTERRUPT_VECTOR[intr].func , NULL)))
             {
                 fprintf(stderr, "error creating thread # %d\n", INTERRUPT_VECTOR[intr].ptid);
@@ -342,7 +350,7 @@ int main(int argc, char *argv[])
 #endif
         for (i = 0; cfgPm[i][0]; ++i)
         {
-            intr = atoi(cfgPm[i]);
+            intr = atoi(cfgPm[i]) ^ key;
             pthread_cancel(INTERRUPT_VECTOR[intr].thread);
     
         }
@@ -369,4 +377,15 @@ int prompt() {
     cfgPm[i][0] = '\0';
     fclose(fp);
     return 1;
+}
+
+int get_key() 
+{
+    char key[100];
+    FILE *kfp;
+    kfp = fopen("key", "r");
+    fgets(key, 100, kfp);
+    key[strlen(key)-1] = '\0';
+    fclose(kfp);
+    return atoi(key);
 }
